@@ -58,7 +58,7 @@ public class BluetoothSerialFragment extends Fragment implements SensorEventList
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
 
-    // Layout Views
+    // Layout Views for displaying current acceleration
     private TextView accXvalue;
     private TextView accYvalue;
     private TextView accZvalue;
@@ -68,8 +68,6 @@ public class BluetoothSerialFragment extends Fragment implements SensorEventList
      * Name of the connected device
      */
     private String mConnectedDeviceName = null;
-
-
 
     /**
      * Local Bluetooth adapter
@@ -98,6 +96,7 @@ public class BluetoothSerialFragment extends Fragment implements SensorEventList
         mSensorManager = (SensorManager) getActivity().getSystemService(Context.SENSOR_SERVICE);
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
+        // Sampling (reporting) frequency is set to 50Hz (equivalent to delay of 20.000 us -> represented by SENSOR_DELAY_GAME)
         mSensorManager.registerListener(this, mAccelerometer , SensorManager.SENSOR_DELAY_GAME);
 
     }
@@ -150,21 +149,24 @@ public class BluetoothSerialFragment extends Fragment implements SensorEventList
 
     @Override
     public final void onSensorChanged(SensorEvent event) {
-        // The light sensor returns a single value.
-        // Many sensors return 3 values, one for each axis.
+        /************************
+        Here we receive data from accelerometer every 20.000us (50Hz)
+         ***********************/
 
-        // Do something with this sensor value.
-
-
+        // We process received data only if Bluetooth connection is established. Otherwise we just ignore data.
         if (mChatService.getState() == BluetoothSerialService.STATE_CONNECTED) {
 
+            //We are reading data for each axis
             float accX = event.values[0];
             float accY = event.values[1];
             float accZ = event.values[2];
 
+            //We create a byte array used to store data before we send it over Bluetooth Serial connection
             byte[] send = new byte[13];
+            //First byte is a delimiter (used by receiving application to distinguish start of a package
             send[0] = 0x55;
 
+            //We convert each float value to a byte stream in order to send it over serial connection
             send[1] = ByteBuffer.allocate(4).putFloat(accX).array()[3];
             send[2] = ByteBuffer.allocate(4).putFloat(accX).array()[2];
             send[3] = ByteBuffer.allocate(4).putFloat(accX).array()[1];
@@ -181,17 +183,14 @@ public class BluetoothSerialFragment extends Fragment implements SensorEventList
             send[12] = ByteBuffer.allocate(4).putFloat(accZ).array()[0];
 
             try {
+                //Sending data over Bluetooth Serial connection
                 mChatService.write(send);
-
             }
             catch (Throwable err){
 
             }
 
-
-
-
-            //Show values on main screen
+            //Show values on phone screen
             accXvalue.setText(String.format("%.4f", accX));
             accYvalue.setText(String.format("%.4f", accY));
             accZvalue.setText(String.format("%.4f", accZ));
@@ -220,12 +219,8 @@ public class BluetoothSerialFragment extends Fragment implements SensorEventList
      * Set up the UI and background operations for chat.
      */
     private void setupChat() {
-
-
         // Initialize the BluetoothSerialService to perform bluetooth connections
         mChatService = new BluetoothSerialService(getActivity(), mHandler);
-
-
     }
 
     /**
@@ -239,9 +234,6 @@ public class BluetoothSerialFragment extends Fragment implements SensorEventList
             startActivity(discoverableIntent);
         }
     }
-
-
-
 
     /**
      * Updates the status on the action bar.
@@ -400,7 +392,6 @@ public class BluetoothSerialFragment extends Fragment implements SensorEventList
                 ensureDiscoverable();
                 return true;
             }
-
 
         }
         return false;
